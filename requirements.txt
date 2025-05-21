@@ -1,0 +1,7 @@
+flask
+flask_cors
+nltk
+textblob
+beautifulsoup4
+requests
+scikit-learn
