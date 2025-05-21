@@ -130,5 +130,6 @@ def analyze_api():
     result = analyze_website(url)
     return jsonify(result)
 
-if __name__ == '__main__':
-    app.run(debug=True)
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))  # Use 5000 as default if PORT is not set
+    app.run(host="0.0.0.0", port=port)
