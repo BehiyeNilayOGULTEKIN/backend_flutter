@@ -337,22 +337,31 @@ def categorize_content(topics, topic_distribution, tfidf_matrix, vectorizer):
     return dict(sorted(percentages.items(), key=lambda x: x[1], reverse=True))
 
 @app.route("/analyze", methods=["POST"])
-def analyze_url():
-    data = request.json
+def analyze():
+    data = request.get_json()
     url = data.get("url")
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
-    text = collect_text_from_url(url)
-    meaningful_ngrams = filter_by_pmi(text)
-    text += ' ' + ' '.join(meaningful_ngrams)
+    try:
+        html = requests.get(url, timeout=10).text
+        soup = BeautifulSoup(html, "html.parser")
+        text = " ".join(p.get_text() for p in soup.find_all(["p", "h1", "h2"]))
 
-    topics, lda, vectorizer, topic_distribution, processed_docs = analyze_content(text)
-    if not topics:
-        return jsonify({"error": "Content analysis failed"}), 500
+        processed_docs = preprocess(text)
+        tfidf = vectorizer.transform(processed_docs)
+        topic_distribution = lda.transform(tfidf)
+        percentages = categorize_content(topics, topic_distribution, tfidf, vectorizer)
+        main_category = max(percentages.items(), key=lambda x: x[1])
 
-    percentages = categorize_content(topics, topic_distribution, vectorizer.transform(processed_docs), vectorizer)
-    return jsonify({"percentages": percentages})
+        return jsonify({
+            "percentages": percentages,
+            "main_category": main_category[0]
+        })
+
+    except Exception as e:
+        print("ERROR:", str(e))
+        return jsonify({"error": "Failed to analyze URL"}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
