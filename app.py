@@ -1,29 +1,29 @@
-import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import nltk
+import os
 from bs4 import BeautifulSoup
 import requests
-import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import LatentDirichletAllocation
+from collections import defaultdict
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
+import re
 from textblob import TextBlob
-from nltk import pos_tag, word_tokenize
-from collections import defaultdict
+from nltk import pos_tag
+from nltk.tokenize import word_tokenize
 
-# Initialize Flask
-app = Flask(__name__)
-CORS(app)
-
-# Download required NLTK data
+# Download resources once
 nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('wordnet')
 nltk.download('averaged_perceptron_tagger')
+nltk.download('brown')
 
-# Sample keyword dictionary (expand as needed)
+app = Flask(__name__)
+CORS(app)
+
 category_keywords = {
     'Technology': [
         'ai', 'artificial intelligence', 'machine learning', 'robotics', 'software', 'hardware',
@@ -264,8 +264,6 @@ category_keywords = {
     ]
 }
 
-
-
 def collect_text_from_url(url):
     try:
         headers = {'User-Agent': 'Mozilla/5.0'}
@@ -273,7 +271,7 @@ def collect_text_from_url(url):
         soup = BeautifulSoup(response.content, 'html.parser')
         for element in soup(['script', 'style', 'nav', 'footer', 'iframe', 'noscript']):
             element.decompose()
-        texts = [element.get_text(' ', strip=True) for element in soup.find_all(['h1', 'h2', 'p', 'strong'])]
+        texts = [element.get_text(' ', strip=True) for element in soup.find_all(['h1', 'h2','h3','h4','h5','h6', 'p', 'strong'])]
         return ' '.join(texts)
     except Exception as e:
         print(f"Error accessing URL: {e}")
@@ -338,30 +336,24 @@ def categorize_content(topics, topic_distribution, tfidf_matrix, vectorizer):
     percentages = {k: (v / total) * 100 for k, v in scores.items()}
     return dict(sorted(percentages.items(), key=lambda x: x[1], reverse=True))
 
-def analyze_website(url, num_topics=10):
+@app.route("/analyze", methods=["POST"])
+def analyze_url():
+    data = request.json
+    url = data.get("url")
+    if not url:
+        return jsonify({"error": "No URL provided"}), 400
+
     text = collect_text_from_url(url)
-    if not text:
-        return {"error": "Failed to retrieve content"}
     meaningful_ngrams = filter_by_pmi(text)
     text += ' ' + ' '.join(meaningful_ngrams)
-    topics, lda, vectorizer, topic_distribution, processed_docs = analyze_content(text, num_topics)
-    if not topics:
-        return {"error": "Text analysis failed"}
-    percentages = categorize_content(topics, topic_distribution, vectorizer.transform(processed_docs), vectorizer)
-    return {
-        "categories": percentages,
-        "top_topic_keywords": {f"Topic {i+1}": topic for i, topic in enumerate(topics)}
-    }
 
-@app.route('/analyze', methods=['POST'])
-def analyze_api():
-    data = request.get_json()
-    url = data.get('url')
-    if not url:
-        return jsonify({"error": "Missing URL"}), 400
-    result = analyze_website(url)
-    return jsonify(result)
+    topics, lda, vectorizer, topic_distribution, processed_docs = analyze_content(text)
+    if not topics:
+        return jsonify({"error": "Content analysis failed"}), 500
+
+    percentages = categorize_content(topics, topic_distribution, vectorizer.transform(processed_docs), vectorizer)
+    return jsonify({"percentages": percentages})
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Use 5000 as default if PORT is not set
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
