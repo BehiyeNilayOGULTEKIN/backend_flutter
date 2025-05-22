@@ -340,6 +340,7 @@ def categorize_content(topics, topic_distribution, tfidf_matrix, vectorizer):
 def analyze():
     data = request.get_json()
     url = data.get("url")
+    print(f"Received URL: {url}")  # Debugging
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
@@ -360,8 +361,8 @@ def analyze():
         })
 
     except Exception as e:
-        print("ERROR:", str(e))
-        return jsonify({"error": "Failed to analyze URL"}), 500
+    print(f"Error: {str(e)}")  # Logs to console (viewable in Render logs)
+    return jsonify({'error': f'Failed to analyze URL: {str(e)}'})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
