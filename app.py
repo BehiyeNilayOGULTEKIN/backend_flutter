@@ -278,6 +278,7 @@ def collect_text_from_url(url):
         print(f"Error accessing URL: {e}")
         return ""
 
+
 def preprocess_text(text):
     text = re.sub(r'http\S+|www\S+|https\S+|[^a-zA-Z\s]', '', text).lower()
     tokens = nltk.word_tokenize(text)
@@ -286,6 +287,10 @@ def preprocess_text(text):
     lemmatizer = WordNetLemmatizer()
     tokens = [lemmatizer.lemmatize(t) for t in tokens]
     return ' '.join(tokens)
+
+def preprocess(text):
+    sentences = nltk.sent_tokenize(text)
+    return [preprocess_text(sentence) for sentence in sentences if len(sentence.split()) > 3]
 
 def filter_meaningful_ngrams(ngrams):
     filtered_ngrams = []
