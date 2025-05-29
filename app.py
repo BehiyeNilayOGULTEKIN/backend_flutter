@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import nltk
 import os
+import traceback
 from bs4 import BeautifulSoup
 import requests
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -361,7 +362,8 @@ def analyze():
 
     except Exception as e:
         print("ERROR:", str(e))
-        return jsonify({"error": "Failed to analyze URL"}), 500
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
