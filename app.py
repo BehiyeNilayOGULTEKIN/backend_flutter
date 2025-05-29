@@ -288,9 +288,6 @@ def preprocess_text(text):
     tokens = [lemmatizer.lemmatize(t) for t in tokens]
     return ' '.join(tokens)
 
-def preprocess(text):
-    sentences = nltk.sent_tokenize(text)
-    return [preprocess_text(sentence) for sentence in sentences if len(sentence.split()) > 3]
 
 def filter_meaningful_ngrams(ngrams):
     filtered_ngrams = []
@@ -354,7 +351,7 @@ def analyze():
         soup = BeautifulSoup(html, "html.parser")
         text = " ".join(p.get_text() for p in soup.find_all(["p", "h1", "h2"]))
 
-        processed_docs = preprocess(text)
+        processed_docs = preprocess_text(text)
         tfidf = vectorizer.transform(processed_docs)
         topic_distribution = lda.transform(tfidf)
         percentages = categorize_content(topics, topic_distribution, tfidf, vectorizer)
