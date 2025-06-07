@@ -15,12 +15,14 @@ from textblob import TextBlob
 from nltk import pos_tag
 from nltk.tokenize import word_tokenize
 
+nltk.data.path.append('./nltk_data')
 # Download resources once
 nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('wordnet')
 nltk.download('averaged_perceptron_tagger')
 nltk.download('brown')
+
 
 app = Flask(__name__)
 CORS(app)
