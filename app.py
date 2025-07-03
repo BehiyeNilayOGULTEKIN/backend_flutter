@@ -22,7 +22,7 @@ nltk.download('stopwords')
 nltk.download('wordnet')
 nltk.download('averaged_perceptron_tagger')
 nltk.download('brown')
-
+nltk.download('punkt_tab') 
 
 app = Flask(__name__)
 CORS(app)
