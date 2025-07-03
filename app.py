@@ -304,6 +304,21 @@ def filter_by_pmi(text, threshold=0):
     meaningful_ngrams = [' '.join(ngram) for ngram in ngrams if blob.np_counts.get(' '.join(ngram), 0) > threshold]
     return filter_meaningful_ngrams(meaningful_ngrams)
 
+# def analyze_content(text, num_topics=10):
+#     if not text.strip():
+#         return None, None, None, None, None
+#     sentences = nltk.sent_tokenize(text)
+#     processed_docs = [preprocess_text(sentence) for sentence in sentences if len(sentence.split()) > 3]
+#     if not processed_docs:
+#         return None, None, None, None, None
+#     vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 3), min_df=2)
+#     X = vectorizer.fit_transform(processed_docs)
+#     lda = LatentDirichletAllocation(n_components=num_topics, max_iter=50, learning_method='online', random_state=42)
+#     lda.fit(X)
+#     feature_names = vectorizer.get_feature_names_out()
+#     topics = [[feature_names[i] for i in topic.argsort()[:-15 - 1:-1]] for topic in lda.components_]
+#     topic_distribution = lda.transform(X)
+#     return topics, lda, vectorizer, topic_distribution, processed_docs
 def analyze_content(text, num_topics=10):
     if not text.strip():
         return None, None, None, None, None
@@ -311,9 +326,22 @@ def analyze_content(text, num_topics=10):
     processed_docs = [preprocess_text(sentence) for sentence in sentences if len(sentence.split()) > 3]
     if not processed_docs:
         return None, None, None, None, None
-    vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 3), min_df=2)
+    
+    # Updated vectorizer parameters
+    vectorizer = TfidfVectorizer(
+        stop_words='english', 
+        ngram_range=(1, 3), 
+        min_df=2,       # Minimum 2 documents
+        max_df=0.95     # Maximum 95% of documents (as a fraction)
+    )
+    
     X = vectorizer.fit_transform(processed_docs)
-    lda = LatentDirichletAllocation(n_components=num_topics, max_iter=50, learning_method='online', random_state=42)
+    lda = LatentDirichletAllocation(
+        n_components=num_topics, 
+        max_iter=50, 
+        learning_method='online', 
+        random_state=42
+    )
     lda.fit(X)
     feature_names = vectorizer.get_feature_names_out()
     topics = [[feature_names[i] for i in topic.argsort()[:-15 - 1:-1]] for topic in lda.components_]
