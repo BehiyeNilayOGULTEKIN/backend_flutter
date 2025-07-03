@@ -118,7 +118,7 @@ category_keywords = {
         'scholarship', 'academic', 'GPA', 'enrollment', 'course', 'graduation', 'research',
         'campus', 'professor', 'seminar', 'certificate', 'MOOC', 'educator', 'principal',
         'school board', 'lab', 'quiz', 'essay', 'literacy', 'dropout', 'kindergarten',
-        'high school', 'SAT', 'ACT', 'PhD', 'master’s', 'bachelor’s', 'adult education',
+        'high school', 'SAT', 'ACT', 'PhD', 'master's', 'bachelor's', 'adult education',
         'online degree', 'study abroad', 'peer learning', 'STEM education', 'academic research',
         'learning platform', 'curriculum design', 'digital classroom', 'pedagogy', 'andragogy',
         'didactics', 'epistemology', 'cognitive development', 'learning styles', 'multiple intelligences',
@@ -191,7 +191,7 @@ category_keywords = {
         'ticket', 'episode', 'season', 'box office', 'celebrity news', 'oscars', 'emmys',
         'documentary', 'soundtrack', 'dance', 'reality show', 'broadway', 'animation', 'screenplay',
         'musical', 'TV series', 'celebrity gossip', 'casting', 'red carpet', 'streaming platform',
-        'film production', 'indie film', 'acting', 'director’s cut', 'blockbuster', 'audition',
+        'film production', 'indie film', 'acting', 'director's cut', 'blockbuster', 'audition',
         'genre', 'narrative', 'plot', 'character', 'theme', 'style', 'tone', 'mood',
         'setting', 'mise-en-scène', 'cinematography', 'editing', 'sound design', 'visual effects',
         'special effects', 'makeup', 'costume design', 'production design', 'art direction',
@@ -280,7 +280,6 @@ def collect_text_from_url(url):
         print(f"Error accessing URL: {e}")
         return ""
 
-
 def preprocess_text(text):
     text = re.sub(r'http\S+|www\S+|https\S+|[^a-zA-Z\s]', '', text).lower()
     tokens = nltk.word_tokenize(text)
@@ -289,7 +288,6 @@ def preprocess_text(text):
     lemmatizer = WordNetLemmatizer()
     tokens = [lemmatizer.lemmatize(t) for t in tokens]
     return ' '.join(tokens)
-
 
 def filter_meaningful_ngrams(ngrams):
     filtered_ngrams = []
@@ -349,13 +347,20 @@ def analyze():
         return jsonify({"error": "No URL provided"}), 400
 
     try:
-        html = requests.get(url, timeout=10).text
-        soup = BeautifulSoup(html, "html.parser")
-        text = " ".join(p.get_text() for p in soup.find_all(["p", "h1", "h2"]))
+        # Collect and preprocess text
+        text = collect_text_from_url(url)
+        if not text:
+            return jsonify({"error": "Could not extract text from URL"}), 400
 
-        processed_docs = preprocess_text(text)
+        # Analyze content to get topics and models
+        topics, lda, vectorizer, topic_distribution, processed_docs = analyze_content(text)
+        if topics is None:
+            return jsonify({"error": "Not enough text to analyze"}), 400
+
+        # Transform the processed docs using the vectorizer
         tfidf = vectorizer.transform(processed_docs)
-        topic_distribution = lda.transform(tfidf)
+        
+        # Categorize the content
         percentages = categorize_content(topics, topic_distribution, tfidf, vectorizer)
         main_category = max(percentages.items(), key=lambda x: x[1])
 
