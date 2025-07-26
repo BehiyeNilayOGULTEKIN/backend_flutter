@@ -279,29 +279,53 @@ def collect_text_from_url(url):
     except Exception as e:
         print(f"Error accessing URL: {e}")
         return ""
+# Loads a web page,
+# Removes non-content elements (scripts, nav, etc.),
+# Extracts the visible, meaningful text (like titles and paragraphs),
+# Returns it as a clean single string.
 
 def preprocess_text(text):
     text = re.sub(r'http\S+|www\S+|https\S+|[^a-zA-Z\s]', '', text).lower()
+    # Uses regex (re.sub) to:
+    # Remove any URLs: matches http://..., https://..., www...
+    # Remove any characters that are not letters (a-z, A-Z) or whitespace.
+    # Converts the entire text to lowercase.
     tokens = nltk.word_tokenize(text)
+    # Tokenizes the cleaned text into individual words (tokens) using NLTK's word_tokenize.
     stop_words = set(stopwords.words('english'))
+    # Loads a set of common English stop words, such as: "the", "is", "and", "in", "on", etc.
+    # These words don’t carry much meaning and are usually removed.
     tokens = [t for t in tokens if t not in stop_words and len(t) > 2]
+    # Filters tokens:
+    # Keeps only words not in the stop words list.
+    # Keeps only words longer than 2 characters.
     lemmatizer = WordNetLemmatizer()
+    # Initializes a lemmatizer, which reduces words to their base form (lemma).
     tokens = [lemmatizer.lemmatize(t) for t in tokens]
+    # Lemmatizes each token: This step helps unify different forms of the same word.
     return ' '.join(tokens)
 
 def filter_meaningful_ngrams(ngrams):
     filtered_ngrams = []
+    # Initializes the output list.
     for phrase in ngrams:
         words = word_tokenize(phrase)
+        # Tokenizes the phrase into words.
         tags = pos_tag(words)
+        # Tags each word with a part of speech (POS), using NLTK’s POS tagger.
         if any(tag.startswith("NN") or tag.startswith("JJ") for _, tag in tags):
+            # Checks if any word in the phrase is a noun (NN...) or adjective (JJ...).
+            # If so, it adds the phrase to filtered_ngrams.
             filtered_ngrams.append(phrase)
     return filtered_ngrams
 
 def filter_by_pmi(text, threshold=0):
     blob = TextBlob(text)
+    # Converts input text to a TextBlob object for easier NLP operations.
     ngrams = blob.ngrams(n=2) + blob.ngrams(n=3)
+    # Gets all bi-grams and tri-grams from the text.
     meaningful_ngrams = [' '.join(ngram) for ngram in ngrams if blob.np_counts.get(' '.join(ngram), 0) > threshold]
+    # Joins n-grams into phrases and filters them based on frequency in noun phrase counts:
     return filter_meaningful_ngrams(meaningful_ngrams)
 
 # def analyze_content(text, num_topics=10):
@@ -348,12 +372,32 @@ def analyze_content(text, num_topics=10):
     topic_distribution = lda.transform(X)
     return topics, lda, vectorizer, topic_distribution, processed_docs
 
+# Sentence Tokenization:
+# Splits the input into sentences using NLTK.
+# Preprocessing:
+# Applies preprocess_text() to each sentence (removes stopwords, lemmatizes, etc.).
+# Keeps only sentences with > 3 words.
+# TF-IDF Vectorization:
+# Converts the preprocessed text into numerical features.
+# Uses unigrams, bigrams, and trigrams.
+# Ignores very rare (appears in <2 docs) and very common (in >95% docs) phrases.
+# LDA Topic Modeling:
+# Trains an LDA (Latent Dirichlet Allocation) model to find num_topics (default 10) topics.
+# Uses online learning for scalability.
+# Extracts Topics:
+# For each topic, gets the top 15 terms based on their importance (highest weights).
+
 def categorize_content(topics, topic_distribution, tfidf_matrix, vectorizer):
     normalized_keywords = {cat: {word.lower() for word in words} for cat, words in category_keywords.items()}
+    # Lowercases all keywords in each category from category_keywords 
     scores = defaultdict(float)
+    # Initializes a dictionary to accumulate scores per category.
     feature_names = vectorizer.get_feature_names_out()
     term_importance = tfidf_matrix.sum(axis=0).A1
     word_importance = dict(zip(feature_names, term_importance))
+    # Gets all feature (word) names from the TF-IDF vectorizer.
+    # Calculates global importance of each word (i.e., its total TF-IDF across all documents).
+    # Stores it in word_importance.
     for topic in topics:
         for word in topic:
             word = word.lower()
@@ -361,10 +405,15 @@ def categorize_content(topics, topic_distribution, tfidf_matrix, vectorizer):
                 for category, keywords in normalized_keywords.items():
                     if word in keywords:
                         scores[category] += word_importance[word]
+    # Iterates over each word in each topic.
+    # If the word is important (appears in TF-IDF features) and is one of the keywords for a category, adds its importance to that category’s score.
     total = sum(scores.values())
     if total == 0:
-        return {"Uncategorized": 100.0}
+        return {"Uncategorized": 100.0} 
+        # If no matches are found across all categories, returns "Uncategorized"
     percentages = {k: (v / total) * 100 for k, v in scores.items()}
+    # Converts each category’s score to a percentage of the total.
+    # Returns the percentages sorted in descending order.
     return dict(sorted(percentages.items(), key=lambda x: x[1], reverse=True))
 
 @app.route("/analyze", methods=["POST"])
@@ -401,6 +450,9 @@ def analyze():
         print("ERROR:", str(e))
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
+
+# The /analyze route accepts a URL, extracts text from the webpage, analyzes it using topic modeling (LDA with TF-IDF), and categorizes the content based on predefined keyword lists. It returns the percentage distribution across categories and the main category
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
